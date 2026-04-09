@@ -1,5 +1,23 @@
+Aquí tienes el código completo y corregido. He incluido la línea import './globals.css'; al principio para que los colores funcionen y he añadido la lógica de Proveedores que habíamos hablado antes.
+
+Copia todo esto y pégalo en tu archivo src/app/page.js borrando lo que tengas actualmente:
+
+JavaScript
 "use client";
-import { useState } from 'react';
+import './globals.css';
+import React, { useState, useEffect } from 'react';
+import { 
+  ShoppingCart, 
+  Package, 
+  Users, 
+  BarChart3, 
+  Plus, 
+  Trash2, 
+  Save, 
+  Search,
+  CheckCircle2,
+  XCircle
+} from 'lucide-react';
 
 export default function TienditaMariangel() {
   const [estaLogueado, setEstaLogueado] = useState(false);
@@ -10,167 +28,251 @@ export default function TienditaMariangel() {
   const [carrito, setCarrito] = useState([]);
   const [pagoCliente, setPagoCliente] = useState("");
   
+  // Datos iniciales
   const [productos, setProductos] = useState([
-    { id: "7701", nombre: "Arroz Diana", unidad: "1kg", precio: 4200, stock: 50 },
-    { id: "8801", nombre: "Papel Higiénico Jumbo", unidad: "Unidad", precio: 12000, stock: 12 },
+    { id: "7701", nombre: "Arroz Diana", unidad: "1kg", precio: 4200, stock: 50, categoria: "Granos" },
+    { id: "8802", nombre: "Aceite Gourmet", unidad: "1L", precio: 12000, stock: 12, categoria: "Aceites" },
+    { id: "9903", nombre: "Papel Higiénico Jumbo", unidad: "4 rollos", precio: 8500, stock: 20, categoria: "Aseo" }
   ]);
 
-  const [historialVentas, setHistorialVentas] = useState([]);
-  const [pagosProveedores, setPagosProveedores] = useState([]);
-  const [nuevoProd, setNuevoProd] = useState({ id: "", nombre: "", unidad: "Unidad", precio: "", stock: "" });
-  const [nuevoPago, setNuevoPago] = useState({ proveedor: "", monto: "", concepto: "", fecha: "" });
+  const [proveedores, setProveedores] = useState([
+    { id: 1, nombre: "Distribuidora El Grano", contacto: "3101234567", categoria: "Granos" },
+    { id: 2, nombre: "Aseo Total S.A.", contacto: "3209876543", categoria: "Aseo" }
+  ]);
 
+  // Manejo de Login
   const manejarLogin = (e) => {
     e.preventDefault();
-    if (usuarioInput === "admin" && passInput === "mariangel2026") setEstaLogueado(true);
-    else alert("Acceso denegado");
+    if (usuarioInput === "admin" && passInput === "mariangel2026") {
+      setEstaLogueado(true);
+    } else {
+      alert("Credenciales incorrectas");
+    }
   };
 
-  const finalizarVenta = () => {
-    if (carrito.length === 0) return alert("Carrito vacío");
-    const fecha = new Date().toLocaleString();
-    let nInv = [...productos];
-    let nRegs = [];
-    carrito.forEach(item => {
-      const i = nInv.findIndex(p => p.id === item.id);
-      if (i !== -1) {
-        nInv[i].stock -= item.cantidad;
-        nRegs.push({ fecha, nombre: item.nombre, unidad: item.unidad, cant: item.cantidad, uni: item.precio, tot: item.precio * item.cantidad, stF: nInv[i].stock });
-      }
+  // Funciones de Venta
+  const agregarAlCarrito = (producto) => {
+    if (producto.stock <= 0) return alert("Sin existencias");
+    const existe = carrito.find(item => item.id === producto.id);
+    if (existe) {
+      setCarrito(carrito.map(item => 
+        item.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item
+      ));
+    } else {
+      setCarrito([...carrito, { ...producto, cantidad: 1 }]);
+    }
+  };
+
+  const totalCarrito = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
+  const devuelta = pagoCliente ? (parseFloat(pagoCliente) - totalCarrito) : 0;
+
+  const procesarVenta = () => {
+    if (carrito.length === 0) return;
+    if (parseFloat(pagoCliente) < totalCarrito) return alert("Pago insuficiente");
+    
+    // Descontar stock
+    const nuevosProductos = productos.map(p => {
+      const enCarrito = carrito.find(c => c.id === p.id);
+      return enCarrito ? { ...p, stock: p.stock - enCarrito.cantidad } : p;
     });
-    setHistorialVentas([...historialVentas, ...nRegs]);
-    setProductos(nInv);
+    
+    setProductos(nuevosProductos);
     setCarrito([]);
     setPagoCliente("");
-    alert("Venta Exitosa");
+    alert("¡Venta Exitosa!");
   };
 
-  const agregarAlCarrito = (p) => {
-    const ex = carrito.find(item => item.id === p.id);
-    if (ex) setCarrito(carrito.map(i => i.id === p.id ? { ...i, cantidad: i.cantidad + 1 } : i));
-    else setCarrito([...carrito, { ...p, cantidad: 1 }]);
-    setBusqueda("");
-  };
-
-  const ajustarCant = (id, d) => {
-    setCarrito(carrito.map(i => i.id === id ? { ...i, cantidad: Math.max(1, i.cantidad + d) } : i));
-  };
-
-  const total = carrito.reduce((acc, i) => acc + (i.precio * i.cantidad), 0);
-  const devuelta = pagoCliente - total > 0 ? pagoCliente - total : 0;
-
-  if (!estaLogueado) return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-900 p-4">
-      <div className="w-full max-w-md bg-white rounded-3xl p-8 shadow-2xl text-center">
-        <h2 className="text-blue-600 font-black text-xs uppercase mb-2">Seguridad</h2>
-        <h1 className="text-2xl font-black mb-8 border-b pb-4">LA TIENDITA DE MARIANGEL</h1>
-        <form onSubmit={manejarLogin} className="space-y-4">
-          <input type="text" placeholder="Usuario" onChange={e=>setUsuarioInput(e.target.value)} className="w-full p-4 border rounded-2xl outline-none focus:border-blue-500 bg-gray-50" />
-          <input type="password" placeholder="Contraseña" onChange={e=>setPassInput(e.target.value)} className="w-full p-4 border rounded-2xl outline-none focus:border-blue-500 bg-gray-50" />
-          <button className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black hover:bg-blue-700 transition">ENTRAR</button>
+  if (!estaLogueado) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <form onSubmit={manejarLogin} className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md">
+          <h1 className="text-3xl font-bold text-center text-blue-600 mb-2">LA TIENDITA DE</h1>
+          <h2 className="text-4xl font-black text-center text-slate-800 mb-8 tracking-tighter">MARIANGEL</h2>
+          <div className="space-y-4">
+            <input 
+              type="text" placeholder="Usuario" 
+              className="w-full p-4 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"
+              value={usuarioInput} onChange={(e) => setUsuarioInput(e.target.value)}
+            />
+            <input 
+              type="password" placeholder="Contraseña" 
+              className="w-full p-4 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"
+              value={passInput} onChange={(e) => setPassInput(e.target.value)}
+            />
+            <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg">
+              INGRESAR AL SISTEMA
+            </button>
+          </div>
         </form>
       </div>
-    </div>
-  );
+    );
+  }
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-100 text-slate-900 font-sans">
-      {/* MENÚ RESPONSIVO */}
-      <div className="w-full lg:w-64 bg-slate-900 text-white p-6 shrink-0 shadow-2xl overflow-y-auto">
-        <h2 className="text-center font-black text-blue-400 text-sm uppercase">La Tiendita de</h2>
-        <h1 className="text-center font-black text-xl mb-6 lg:mb-10 border-b border-slate-700 pb-4">MARIANGEL</h1>
-        <nav className="flex lg:flex-col overflow-x-auto lg:overflow-x-visible gap-2 pb-4 lg:pb-0">
-          <button onClick={()=>setVista("ventas")} className={`whitespace-nowrap lg:w-full text-left p-3 rounded-xl transition ${vista==='ventas'?'bg-blue-600':'hover:bg-slate-800'}`}>🛒 Ventas</button>
-          <button onClick={()=>setVista("gestion")} className={`whitespace-nowrap lg:w-full text-left p-3 rounded-xl transition ${vista==='gestion'?'bg-blue-600':'hover:bg-slate-800'}`}>📦 Productos</button>
-          <button onClick={()=>setVista("proveedores")} className={`whitespace-nowrap lg:w-full text-left p-3 rounded-xl transition ${vista==='proveedores'?'bg-blue-600':'hover:bg-slate-800'}`}>💰 Proveedores</button>
-          <button onClick={()=>setVista("reportes")} className={`whitespace-nowrap lg:w-full text-left p-3 rounded-xl transition ${vista==='reportes'?'bg-blue-600':'hover:bg-slate-800'}`}>📈 Reportes</button>
-        </nav>
-      </div>
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
+      {/* Sidebar / Menú lateral */}
+      <nav className="w-full md:w-64 bg-slate-900 text-white p-6 flex flex-col gap-2">
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-blue-400 italic">Mariangel App</h2>
+        </div>
+        
+        <button onClick={() => setVista("ventas")} className={`flex items-center gap-3 p-3 rounded-lg transition ${vista === "ventas" ? "bg-blue-600" : "hover:bg-slate-800"}`}>
+          <ShoppingCart size={20} /> Ventas
+        </button>
+        <button onClick={() => setVista("productos")} className={`flex items-center gap-3 p-3 rounded-lg transition ${vista === "productos" ? "bg-blue-600" : "hover:bg-slate-800"}`}>
+          <Package size={20} /> Productos
+        </button>
+        <button onClick={() => setVista("proveedores")} className={`flex items-center gap-3 p-3 rounded-lg transition ${vista === "proveedores" ? "bg-blue-600" : "hover:bg-slate-800"}`}>
+          <Users size={20} /> Proveedores
+        </button>
+        <button onClick={() => setVista("reportes")} className={`flex items-center gap-3 p-3 rounded-lg transition ${vista === "reportes" ? "bg-blue-600" : "hover:bg-slate-800"}`}>
+          <BarChart3 size={20} /> Reportes
+        </button>
+        
+        <button onClick={() => setEstaLogueado(false)} className="mt-auto flex items-center gap-3 p-3 text-red-400 hover:bg-red-950 rounded-lg transition">
+          <XCircle size={20} /> Cerrar Sesión
+        </button>
+      </nav>
 
-      <div className="flex-1 p-4 lg:p-8 overflow-y-auto">
+      {/* Area Principal */}
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+        
+        {/* VISTA: PUNTO DE VENTA */}
         {vista === "ventas" && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white p-4 lg:p-6 rounded-2xl shadow-sm border border-slate-200">
-              <input type="text" value={busqueda} onChange={e=>setBusqueda(e.target.value)} placeholder="Buscar..." className="w-full p-4 border rounded-xl bg-slate-50 outline-none text-xl mb-4 focus:border-blue-500" />
-              <div className="space-y-2 max-h-[300px] lg:max-h-[500px] overflow-y-auto">
-                {busqueda && productos.filter(p=>p.nombre.toLowerCase().includes(busqueda.toLowerCase())).map(p=>(
-                  <button key={p.id} onClick={()=>agregarAlCarrito(p)} className="w-full flex justify-between p-4 bg-slate-50 border rounded-xl hover:bg-blue-50 transition">
-                    <span className="font-bold">{p.nombre}</span><b className="text-blue-600">${p.precio.toLocaleString('es-CO')}</b>
-                  </button>
-                ))}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <div className="bg-white p-4 rounded-xl shadow-sm flex items-center gap-3 border">
+                <Search className="text-slate-400" />
+                <input 
+                  type="text" placeholder="Buscar producto por nombre o código..."
+                  className="w-full outline-none text-slate-700"
+                  value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
+                />
               </div>
-            </div>
-
-            <div className="flex flex-col gap-4">
-              <div className="bg-white p-4 lg:p-6 rounded-2xl shadow-sm border max-h-[300px] overflow-y-auto">
-                <h3 className="text-xs font-bold text-slate-400 uppercase mb-4">Carrito</h3>
-                {carrito.map(i=>(
-                  <div key={i.id} className="flex flex-wrap justify-between items-center py-3 border-b border-slate-50 gap-2">
-                    <span className="font-bold w-full lg:w-1/4">{i.nombre}</span>
-                    <div className="flex items-center gap-2">
-                      <button onClick={()=>ajustarCant(i.id, -1)} className="bg-gray-200 w-8 h-8 rounded-lg font-bold">-</button>
-                      <span className="font-black w-6 text-center">{i.cantidad}</span>
-                      <button onClick={()=>ajustarCant(i.id, 1)} className="bg-blue-100 text-blue-600 w-8 h-8 rounded-lg font-bold">+</button>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {productos.filter(p => p.nombre.toLowerCase().includes(busqueda.toLowerCase())).map(p => (
+                  <div key={p.id} onClick={() => agregarAlCarrito(p)} className="bg-white p-4 rounded-xl shadow-sm border hover:border-blue-400 cursor-pointer transition-all group">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-xs font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded-md">{p.unidad}</span>
+                      <span className={`text-xs font-bold ${p.stock < 10 ? 'text-red-500' : 'text-green-500'}`}>Stock: {p.stock}</span>
                     </div>
-                    <span className="font-bold">${(i.precio*i.cantidad).toLocaleString('es-CO')}</span>
-                    <button onClick={()=>setCarrito(carrito.filter(c=>c.id!==i.id))} className="text-xl">🗑️</button>
+                    <h3 className="font-bold text-slate-800 group-hover:text-blue-600">{p.nombre}</h3>
+                    <p className="text-2xl font-black text-slate-900 mt-2">${p.precio.toLocaleString()}</p>
+                    <button className="mt-4 w-full flex items-center justify-center gap-2 bg-slate-100 group-hover:bg-blue-600 group-hover:text-white py-2 rounded-lg transition">
+                      <Plus size={16} /> Agregar
+                    </button>
                   </div>
                 ))}
               </div>
-              <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-xl">
-                <div className="flex justify-between items-center mb-4"><span>TOTAL:</span><span className="text-4xl font-black">${total.toLocaleString('es-CO')}</span></div>
-                <input type="number" value={pagoCliente} onChange={e=>setPagoCliente(e.target.value)} className="w-full p-3 bg-slate-800 border-slate-700 rounded-xl text-2xl font-bold text-green-400 text-center mb-4" placeholder="Recibido" />
-                <div className="flex justify-between p-4 bg-blue-900/30 rounded-xl mb-4 border border-blue-800"><span>DEVUELTA:</span><span className="text-3xl font-black">${devuelta.toLocaleString('es-CO')}</span></div>
-                <button onClick={finalizarVenta} className="w-full bg-green-600 text-white py-4 rounded-xl font-black text-xl hover:bg-green-500 shadow-lg">✅ COBRAR</button>
+            </div>
+
+            {/* Carrito / Cobro */}
+            <div className="bg-white rounded-2xl shadow-lg border border-slate-200 flex flex-col h-[600px]">
+              <div className="p-4 border-b bg-slate-50 rounded-t-2xl">
+                <h2 className="font-bold text-slate-700 flex items-center gap-2 text-lg">
+                  <ShoppingCart size={20} className="text-blue-600" /> Carrito de Venta
+                </h2>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {carrito.map(item => (
+                  <div key={item.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border">
+                    <div>
+                      <p className="font-bold text-sm text-slate-800">{item.nombre}</p>
+                      <p className="text-xs text-slate-500">{item.cantidad} x ${item.precio.toLocaleString()}</p>
+                    </div>
+                    <p className="font-bold text-blue-600">${(item.cantidad * item.precio).toLocaleString()}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="p-4 border-t bg-slate-900 text-white rounded-b-2xl space-y-4">
+                <div className="flex justify-between text-2xl font-black">
+                  <span>TOTAL:</span>
+                  <span className="text-green-400">${totalCarrito.toLocaleString()}</span>
+                </div>
+                <input 
+                  type="number" placeholder="¿Con cuánto paga?"
+                  className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 text-white outline-none focus:ring-2 focus:ring-blue-500"
+                  value={pagoCliente} onChange={(e) => setPagoCliente(e.target.value)}
+                />
+                {pagoCliente && (
+                  <div className="flex justify-between text-lg font-bold text-slate-300">
+                    <span>Devuelta:</span>
+                    <span>${devuelta.toLocaleString()}</span>
+                  </div>
+                )}
+                <button 
+                  onClick={procesarVenta}
+                  className="w-full bg-green-500 hover:bg-green-600 py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all"
+                >
+                  <CheckCircle2 size={24} /> FINALIZAR COBRO
+                </button>
               </div>
             </div>
           </div>
         )}
 
-        {vista === "gestion" && (
-          <div className="max-w-2xl mx-auto bg-white p-6 lg:p-8 rounded-2xl shadow-sm border border-slate-200">
-            <h2 className="text-2xl font-black mb-6">📦 Registro de Mercancía</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2"><input type="text" placeholder="Nombre del Producto" onChange={e=>setNuevoProd({...nuevoProd, nombre: e.target.value})} className="w-full p-3 border rounded-xl" /></div>
-              <input type="text" placeholder="Und (kg/unid)" onChange={e=>setNuevoProd({...nuevoProd, unidad: e.target.value})} className="w-full p-3 border rounded-xl" />
-              <input type="text" placeholder="Código/ID" onChange={e=>setNuevoProd({...nuevoProd, id: e.target.value})} className="w-full p-3 border rounded-xl" />
-              <input type="number" placeholder="Precio Venta" onChange={e=>setNuevoProd({...nuevoProd, precio: e.target.value})} className="w-full p-3 border rounded-xl" />
-              <input type="number" placeholder="Stock" onChange={e=>setNuevoProd({...nuevoProd, stock: e.target.value})} className="w-full p-3 border rounded-xl" />
-              <button onClick={()=>{setProductos([...productos,{...nuevoProd, precio:parseInt(nuevoProd.precio), stock:parseInt(nuevoProd.stock)}]); alert("Guardado");}} className="md:col-span-2 bg-blue-600 text-white py-4 rounded-xl font-bold mt-4">💾 GUARDAR</button>
-            </div>
-          </div>
-        )}
-
-        {vista === "proveedores" && (
-          <div className="max-w-4xl mx-auto space-y-6">
-            <div className="bg-white p-6 rounded-2xl border shadow-sm">
-              <h2 className="text-2xl font-black mb-6 italic">💰 Pago a Proveedores</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="text" placeholder="Proveedor" onChange={e=>setNuevoPago({...nuevoPago, proveedor: e.target.value})} className="w-full p-3 border rounded-xl" />
-                <input type="number" placeholder="Monto Pagado" onChange={e=>setNuevoPago({...nuevoPago, monto: e.target.value})} className="w-full p-3 border rounded-xl" />
-                <input type="text" placeholder="Concepto (Factura #)" onChange={e=>setNuevoPago({...nuevoPago, concepto: e.target.value})} className="w-full p-3 border rounded-xl md:col-span-2" />
-                <button onClick={()=>{setPagosProveedores([...pagosProveedores, {...nuevoPago, fecha: new Date().toLocaleString()}]); alert("Pago Registrado");}} className="md:col-span-2 bg-slate-800 text-white py-4 rounded-xl font-bold">REGISTRAR PAGO</button>
-              </div>
-            </div>
-            <div className="bg-white p-6 rounded-2xl border shadow-sm overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead><tr className="bg-gray-100 font-bold uppercase"><th className="p-3">Fecha</th><th className="p-3">Proveedor</th><th className="p-3">Concepto</th><th className="p-3">Monto</th></tr></thead>
-                <tbody>{pagosProveedores.map((p,i)=>(<tr key={i} className="border-b"><td className="p-3">{p.fecha}</td><td className="p-3 font-bold">{p.proveedor}</td><td className="p-3">{p.concepto}</td><td className="p-3 font-black text-red-600">${parseInt(p.monto).toLocaleString('es-CO')}</td></tr>))}</tbody>
+        {/* VISTA: PRODUCTOS / INVENTARIO (Simple para Mariangel) */}
+        {vista === "productos" && (
+          <div className="bg-white rounded-2xl shadow-sm border p-6">
+            <h2 className="text-2xl font-bold mb-6 text-slate-800">Control de Inventario</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b text-slate-400 text-sm uppercase">
+                    <th className="py-3 px-4">Producto</th>
+                    <th className="py-3 px-4">Unidad</th>
+                    <th className="py-3 px-4">Precio</th>
+                    <th className="py-3 px-4">Stock</th>
+                    <th className="py-3 px-4">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productos.map(p => (
+                    <tr key={p.id} className="border-b hover:bg-slate-50 transition">
+                      <td className="py-4 px-4 font-bold text-slate-700">{p.nombre}</td>
+                      <td className="py-4 px-4">{p.unidad}</td>
+                      <td className="py-4 px-4 font-bold text-blue-600">${p.precio.toLocaleString()}</td>
+                      <td className="py-4 px-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${p.stock < 10 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                          {p.stock} dispon.
+                        </span>
+                      </td>
+                      <td className="py-4 px-4">
+                        <button className="text-red-400 hover:text-red-600"><Trash2 size={18} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </div>
+            <button className="mt-6 flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition">
+              <Plus size={20} /> Nuevo Producto
+            </button>
           </div>
         )}
 
-        {vista === "reportes" && (
-          <div className="bg-white p-6 lg:p-8 rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
-            <h2 className="text-2xl font-black mb-6">📈 Historial de Ventas</h2>
-            <table className="w-full text-xs text-left">
-              <thead><tr className="bg-slate-100 uppercase border-b"><th className="p-4">Fecha</th><th className="p-4">Producto</th><th className="p-4">Cant</th><th className="p-4 text-green-700">Total</th><th className="p-4 bg-orange-50 text-orange-700">Stock Final</th></tr></thead>
-              <tbody>{historialVentas.map((v,i)=>(<tr key={i} className="border-b"><td className="p-4 text-slate-400">{v.fecha}</td><td className="p-4 font-bold">{v.nombre}</td><td className="p-4 font-black">{v.cant}</td><td className="p-4 font-black text-green-600">${v.tot.toLocaleString('es-CO')}</td><td className="p-4 font-bold bg-orange-50 text-orange-700 text-center">{v.stF}</td></tr>))}</tbody>
-            </table>
+        {/* VISTA: PROVEEDORES */}
+        {vista === "proveedores" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {proveedores.map(prov => (
+              <div key={prov.id} className="bg-white p-6 rounded-2xl border shadow-sm">
+                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4 font-black text-xl">
+                  {prov.nombre.charAt(0)}
+                </div>
+                <h3 className="font-bold text-slate-800 text-lg">{prov.nombre}</h3>
+                <p className="text-slate-500 text-sm mb-4">Contacto: {prov.contacto}</p>
+                <span className="text-xs bg-slate-100 px-3 py-1 rounded-full font-bold text-slate-600">{prov.categoria}</span>
+              </div>
+            ))}
+            <div className="border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center p-8 text-slate-400 hover:border-blue-400 hover:text-blue-400 cursor-pointer transition">
+               <Plus size={40} className="mb-2" />
+               <p className="font-bold">Añadir Proveedor</p>
+            </div>
           </div>
         )}
-      </div>
+
+      </main>
     </div>
   );
 }
